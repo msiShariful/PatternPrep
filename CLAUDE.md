@@ -52,7 +52,9 @@ Roadmap stage items: `{kind:"patterns", ids:[categoryIds]}` | `{kind:"topics", s
 
 ## Design system
 
-Material 3 Expressive, light theme. Tokens at the top of `css/style.css`. Type: Outfit (display), Roboto (body), Google Sans Code (mono) via Google Fonts with system fallbacks. Five-plus-one hue system (see phases above); tonal container colors for chips/avatars; signature elements are the wavy SVG progress ring (`wavyRingSVG`) and per-problem "solve strips". Respect `prefers-reduced-motion`; keep visible focus states; mobile breakpoints at 1080px (tabs→drawer) and 760px.
+Material 3 Expressive, light and dark themes. All colors are CSS custom properties; the dark set lives in `html[data-theme="dark"]` at the top of `css/style.css` (Google dark palette — bright hue mains like `#8ab4f8`, deep tonal containers). Theme is resolved by an inline script in `index.html` **before** the stylesheet loads (no flash): stored preference under localStorage key `patternprep.theme`, else `prefers-color-scheme`; the top-bar sun/moon button toggles and persists it (theme is NOT part of Progress export). Never hardcode a color in CSS or JS — use tokens; SVG ring colors are passed as `var(--hue)` strings and applied via `style="stroke:…"` (the `stroke` attribute doesn't support `var()`), with tracks styled by the `.ring-track` class.
+
+Tokens at the top of `css/style.css`. Type: Outfit (display), Roboto (body), Google Sans Code (mono) via Google Fonts with system fallbacks. Five-plus-one hue system (see phases above); tonal container colors for chips/avatars; signature elements are the wavy SVG progress ring (`wavyRingSVG`) and per-problem "solve strips". Respect `prefers-reduced-motion`; keep visible focus states; mobile breakpoints at 1080px (tabs→drawer) and 760px.
 
 ## Conventions
 

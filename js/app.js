@@ -31,7 +31,8 @@
     "Greedy & Bits": "teal",
     "Recursion & DP": "purple"
   };
-  var HUE_MAIN = { blue: "#1a73e8", green: "#1e8e3e", amber: "#f29900", red: "#d93025", purple: "#8430ce", teal: "#0097a7" };
+  /* Ring/dot colors reference CSS variables so they adapt to light/dark theme. */
+  var HUE_MAIN = { blue: "var(--blue)", green: "var(--green)", amber: "var(--amber)", red: "var(--red)", purple: "var(--purple)", teal: "var(--teal)" };
 
   var DIFF_CLASS = { "Easy": "chip-easy", "Medium": "chip-medium", "Hard": "chip-hard", "Super Hard": "chip-super" };
 
@@ -114,16 +115,16 @@
     }
     var d = "M" + pts.join(" L") + " Z";
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + " " + size + '" role="img" aria-label="' + pct + '% complete">' +
-      '<path d="' + d + '" fill="none" stroke="#e4e9f1" stroke-width="10" stroke-linejoin="round"/>' +
-      '<path class="ring-progress" d="' + d + '" fill="none" stroke="' + color + '" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="' + Math.max(pct, 0.5) + ' 100" transform="rotate(-90 ' + cx + " " + cy + ')"/>' +
+      '<path class="ring-track" d="' + d + '" fill="none" stroke-width="10" stroke-linejoin="round"/>' +
+      '<path class="ring-progress" d="' + d + '" fill="none" style="stroke:' + color + '" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="' + Math.max(pct, 0.5) + ' 100" transform="rotate(-90 ' + cx + " " + cy + ')"/>' +
       "</svg>";
   }
 
   function miniRingSVG(solved, total, size, color) {
     var pct = total ? (solved / total) * 100 : 0;
     var r = size / 2 - 4;
-    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + " " + size + '"><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="#e4e9f1" stroke-width="4"/>' +
-      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="4" stroke-linecap="round" pathLength="100" stroke-dasharray="' + Math.max(pct, 0.5) + ' 100" transform="rotate(-90 ' + size / 2 + " " + size / 2 + ')"/></svg>';
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + " " + size + '"><circle class="ring-track" cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke-width="4"/>' +
+      '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" style="stroke:' + color + '" stroke-width="4" stroke-linecap="round" pathLength="100" stroke-dasharray="' + Math.max(pct, 0.5) + ' 100" transform="rotate(-90 ' + size / 2 + " " + size / 2 + ')"/></svg>';
   }
 
   function toast(msg) {
@@ -744,6 +745,28 @@
     };
     reader.readAsText(file);
   });
+
+  /* ---------- theme toggle ---------- */
+  var themeBtn = document.getElementById("themeToggle");
+  function applyTheme(t) {
+    document.documentElement.setAttribute("data-theme", t);
+    themeBtn.setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
+  }
+  themeBtn.addEventListener("click", function () {
+    var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    try { localStorage.setItem("patternprep.theme", next); } catch (e) {}
+    applyTheme(next);
+  });
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) {
+      mq.addEventListener("change", function (e) {
+        var stored = null;
+        try { stored = localStorage.getItem("patternprep.theme"); } catch (err) {}
+        if (!stored) applyTheme(e.matches ? "dark" : "light"); // follow system until user chooses
+      });
+    }
+  }
 
   /* ---------- menu & drawer ---------- */
   var menuBtn = document.getElementById("menuBtn");

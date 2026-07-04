@@ -66,6 +66,12 @@ Every problem ships with:
   Leadership Principles**, Google/Meta signal breakdowns, senior-scope storytelling, and questions
   to ask back.
 
+### 🌙 Light & dark themes
+Defaults to your system preference; toggle any time from the top bar. The choice persists, with no
+flash-of-wrong-theme on load.
+
+<img src="docs/screenshots/home-dark.png" alt="PatternPrep in dark mode" width="800">
+
 ### 📈 Progress that stays yours
 Solved/attempted status, hint reveals, and topic read-state are stored in `localStorage` — no
 account, no server, nothing leaves your browser. Export a JSON backup any time (⋮ menu) and import
