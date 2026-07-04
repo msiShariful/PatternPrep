@@ -12,6 +12,8 @@ system design, behavioral prep, and guided roadmaps. No backend, no build step, 
 ![Java solutions](https://img.shields.io/badge/solutions-Java-f29900)
 ![License: MIT](https://img.shields.io/badge/license-MIT-8430ce)
 
+**[▶ Live demo](https://msishariful.github.io/PatternPrep/)**
+
 <img src="docs/screenshots/home.png" alt="PatternPrep home — progress ring and pattern path" width="800">
 
 </div>
