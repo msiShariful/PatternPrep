@@ -360,7 +360,7 @@
     var style = ' style="--chip-bg:var(--' + n.hue + '-c);--chip-fg:var(--on-' + n.hue + '-c);--chip-main:var(--' + n.hue + ')"';
     var label = esc(n.t) + (n.collapsed && n.total ? '<span class="an-count">' + n.total + "</span>" : "");
     var h = n.hasKids
-      ? '<button class="an-t" data-i="' + i + '" aria-expanded="' + String(!n.collapsed) + '">' + label + "</button>"
+      ? '<button class="an-t" data-i="' + i + '" aria-expanded="' + String(!n.collapsed) + '" title="' + (n.collapsed ? "Unfold " + esc(n.t) : "Fold " + esc(n.t)) + '">' + label + "</button>"
       : '<span class="an-t">' + label + "</span>";
     if (n.cat && CAT_BY_ID[n.cat]) {
       var c = CAT_BY_ID[n.cat], s = catStats(c);
@@ -370,7 +370,7 @@
   }
 
   function atlasLayout(nodes) {
-    var HGAP = 44, LEAF_GAP = 7, PAD = 30;
+    var LEAF_GAP = 7, PAD = 40;
     var childrenOf = nodes.map(function () { return []; });
     nodes.forEach(function (n, i) { if (n.parent >= 0) childrenOf[n.parent].push(i); });
     var cursorY = PAD, maxRight = 0;
@@ -384,8 +384,10 @@
         cursorY += n.h + LEAF_GAP;
         return;
       }
+      /* longer run out of the root so the branch fan stays graceful */
+      var hgap = n.depth === 0 ? 76 : 44;
       kids.forEach(function (k, j) {
-        place(k, x + n.w + HGAP);
+        place(k, x + n.w + hgap);
         if (j < kids.length - 1) cursorY += (n.depth === 0 ? 16 : n.depth === 1 ? 7 : 2);
       });
       var f = nodes[kids[0]], l = nodes[kids[kids.length - 1]];
@@ -419,8 +421,8 @@
       var p = nodes[n.parent];
       var x1 = p.x + p.w + 3, y1 = p.y + p.h / 2;
       var x2 = n.x - 3, y2 = n.y + n.h / 2;
-      var mx = (x2 - x1) / 2;
-      paths += '<path d="M' + x1 + " " + y1 + " C" + (x1 + mx) + " " + y1 + " " + (x2 - mx) + " " + y2 + " " + x2 + " " + y2 +
+      var dx = x2 - x1;
+      paths += '<path d="M' + x1 + " " + y1 + " C" + (x1 + dx * 0.6) + " " + y1 + " " + (x2 - dx * 0.35) + " " + y2 + " " + x2 + " " + y2 +
         '" style="stroke:' + (HUE_MAIN[n.hue] || HUE_MAIN.blue) + '" stroke-width="' + (n.depth === 1 ? 2.4 : 1.7) + '" stroke-linecap="round" fill="none" opacity=".9"/>';
     });
     svg.innerHTML = paths;
@@ -442,9 +444,26 @@
     if (pct) pct.textContent = Math.round(z * 100) + "%";
   }
 
-  function atlasSetZoom(z) {
-    atlasSession.zoom = Math.max(0.35, Math.min(1.5, Math.round(z * 100) / 100));
+  /* Zoom keeping a point stable — the cursor (ax/ay in client coords) or,
+     when omitted, the viewport center. */
+  function atlasSetZoom(z, ax, ay) {
+    var viewport = document.getElementById("atlasViewport");
+    var oldZ = atlasSession.zoom;
+    z = Math.max(0.35, Math.min(1.5, Math.round(z * 100) / 100));
+    if (!viewport || z === oldZ) {
+      atlasSession.zoom = z;
+      atlasApplyZoom();
+      return;
+    }
+    var rect = viewport.getBoundingClientRect();
+    var vx = ax == null ? viewport.clientWidth / 2 : ax - rect.left;
+    var vy = ay == null ? viewport.clientHeight / 2 : ay - rect.top;
+    var px = (viewport.scrollLeft + vx) / oldZ;
+    var py = (viewport.scrollTop + vy) / oldZ;
+    atlasSession.zoom = z;
     atlasApplyZoom();
+    viewport.scrollLeft = px * z - vx;
+    viewport.scrollTop = py * z - vy;
   }
 
   function atlasCollapsedAll() {
@@ -516,7 +535,7 @@
     viewport.addEventListener("wheel", function (e) {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      atlasSetZoom(atlasSession.zoom - (e.deltaY > 0 ? 0.1 : -0.1));
+      atlasSetZoom(atlasSession.zoom - (e.deltaY > 0 ? 0.1 : -0.1), e.clientX, e.clientY);
     }, { passive: false });
 
     renderAtlas();
@@ -533,25 +552,19 @@
     }
     if (!PMAP) mode = "list";
 
-    var t = totalStats();
-    var html = '<header><p class="eyebrow">Problem bank</p>';
-    if (mode === "map") {
-      html += "<h1>Every pattern, one map.</h1>" +
-        '<p class="lede">The whole coding-interview landscape — 16 data structures unfolding into the technique families behind ' + t.total + " curated problems. Open a branch, follow a ribbon, and the tonal chips take you straight to practice.</p>";
-    } else {
-      html += "<h1>The pattern path</h1>" +
-        '<p class="lede">' + t.total + " curated problems in 18 patterns across six phases. Each problem has three progressive hints — pattern, approach, pseudocode — and a Java solution kept firmly behind a click.</p>";
-    }
-    html += "</header>";
-    html += '<div style="margin-top:26px">' + continueCard() + "</div>";
-
-    html += '<div class="atlas-bar">' +
-      '<nav class="seg" aria-label="Problem bank view">' +
+    var seg = '<nav class="seg" aria-label="Problem bank view">' +
       '<a class="seg-opt' + (mode === "map" ? " active" : "") + '" href="#/patterns/map">Pattern map</a>' +
       '<a class="seg-opt' + (mode === "list" ? " active" : "") + '" href="#/patterns/list">Phase list</a>' +
       "</nav>";
+
     if (mode === "map") {
-      html += '<div class="atlas-tools">' +
+      /* Immersive workspace: canvas fills the viewport below the top bar,
+         controls float over it, the page itself does not scroll. */
+      document.body.classList.add("atlas-full");
+      view.innerHTML = '<div class="atlas-stage"><h1 class="sr-only">Pattern map</h1>' +
+        '<div class="atlas-viewport" id="atlasViewport" tabindex="0" role="region" aria-label="Pattern map — scrollable canvas"><div class="atlas-sizer" id="atlasSizer"><div class="atlas-canvas" id="atlasCanvas"></div></div></div>' +
+        '<div class="atlas-float atlas-float-tl">' + seg + "</div>" +
+        '<div class="atlas-float atlas-float-tr">' +
         '<button class="tool" id="atlasExpand">Expand all</button>' +
         '<button class="tool" id="atlasCollapse">Collapse all</button>' +
         '<span class="atlas-zoom">' +
@@ -560,18 +573,21 @@
         '<button id="atlasZoomIn" aria-label="Zoom in">+</button>' +
         "</span>" +
         '<button class="tool" id="atlasFit">Fit</button>' +
+        "</div>" +
+        '<div class="atlas-float atlas-float-bl"><p class="atlas-hint">drag to pan · click a branch to unfold · ' + esc(PMAP.credit) + "</p></div>" +
         "</div>";
+      initAtlas();
+      return;
     }
-    html += "</div>";
 
-    if (mode === "map") {
-      html += '<div class="atlas"><div class="atlas-viewport" id="atlasViewport" tabindex="0" role="region" aria-label="Pattern map — scrollable canvas"><div class="atlas-sizer" id="atlasSizer"><div class="atlas-canvas" id="atlasCanvas"></div></div></div></div>' +
-        '<p class="atlas-hint">drag to pan · click a branch to unfold it · ' + esc(PMAP.credit) + "</p>";
-    } else {
-      html += pathGrid();
-    }
+    var t = totalStats();
+    var html = '<header><p class="eyebrow">Problem bank</p>' +
+      "<h1>The pattern path</h1>" +
+      '<p class="lede">' + t.total + " curated problems in 18 patterns across six phases. Each problem has three progressive hints — pattern, approach, pseudocode — and a Java solution kept firmly behind a click.</p></header>";
+    html += '<div style="margin-top:26px">' + continueCard() + "</div>";
+    html += '<div class="atlas-bar">' + seg + "</div>";
+    html += pathGrid();
     view.innerHTML = html;
-    if (mode === "map") initAtlas();
   }
 
   function topicListNumbers(hueName) {
@@ -1049,6 +1065,7 @@
     var hash = location.hash || "#/";
     var parts = hash.replace(/^#\//, "").split("/").filter(Boolean);
     window.scrollTo(0, 0);
+    document.body.classList.remove("atlas-full"); /* map mode re-adds it */
 
     if (parts.length === 0) viewHome();
     else if (parts[0] === "roadmap") viewRoadmap(parts[1]);
