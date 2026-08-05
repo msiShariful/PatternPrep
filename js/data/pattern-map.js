@@ -7,7 +7,7 @@ window.PATTERN_MAP = {
   credit: "Taxonomy adapted from CodeWithNishchal’s DSA Patterns mind map",
   branches: [
 
-    { t: "Array", hue: "indigo", kids: [
+    { t: "Array", hue: "indigo", learn: "array", kids: [
       { t: "Two Pointer", cat: "two-pointers", kids: [
         { t: "Opposite ends (left + right)" },
         { t: "Same direction (fast & slow)" },
@@ -36,7 +36,7 @@ window.PATTERN_MAP = {
       ] }
     ] },
 
-    { t: "String", hue: "magenta", kids: [
+    { t: "String", hue: "magenta", learn: "string", kids: [
       { t: "Sliding Window", cat: "sliding-window", kids: [
         { t: "Longest substring without repeat" },
         { t: "Minimum window substring" },
@@ -54,7 +54,7 @@ window.PATTERN_MAP = {
       ] }
     ] },
 
-    { t: "Hash Map", hue: "blue", kids: [
+    { t: "Hash Map", hue: "blue", learn: "hash-map", kids: [
       { t: "Frequency Based" },
       { t: "Lookup Based" },
       { t: "Set Based" },
@@ -62,7 +62,7 @@ window.PATTERN_MAP = {
       { t: "Grouping Pattern" }
     ] },
 
-    { t: "Stack", hue: "green", cat: "stacks-monotonic", kids: [
+    { t: "Stack", hue: "green", learn: "stack", cat: "stacks-monotonic", kids: [
       { t: "Monotonic Stack", kids: [
         { t: "Increasing" },
         { t: "Decreasing" }
@@ -78,14 +78,14 @@ window.PATTERN_MAP = {
       { t: "Histogram Pattern" }
     ] },
 
-    { t: "Queue / Deque", hue: "orange", kids: [
+    { t: "Queue / Deque", hue: "orange", learn: "queue-deque", kids: [
       { t: "FIFO Processing" },
       { t: "Level-wise Processing" },
       { t: "Circular Queue Pattern" },
       { t: "Deque Based" }
     ] },
 
-    { t: "Linked List", hue: "amber", kids: [
+    { t: "Linked List", hue: "amber", learn: "linked-list", kids: [
       { t: "Pointer Techniques", cat: "fast-slow-pointers", kids: [
         { t: "Fast–slow" },
         { t: "Cycle detection" },
@@ -98,7 +98,7 @@ window.PATTERN_MAP = {
       { t: "Merge Lists" }
     ] },
 
-    { t: "Trees", hue: "red", cat: "trees-bfs-dfs", kids: [
+    { t: "Trees", hue: "red", learn: "trees", cat: "trees-bfs-dfs", kids: [
       { t: "Traversal", kids: [
         { t: "DFS (pre / in / post order)" },
         { t: "BFS (level order / zigzag / right view)" }
@@ -114,7 +114,7 @@ window.PATTERN_MAP = {
       { t: "BST (Binary Search Tree)" }
     ] },
 
-    { t: "Recursion", hue: "purple", kids: [
+    { t: "Recursion", hue: "purple", learn: "recursion", kids: [
       { t: "Backtracking", cat: "backtracking", kids: [
         { t: "Exploration", kids: [
           { t: "Decision tree" },
@@ -133,7 +133,7 @@ window.PATTERN_MAP = {
       ] }
     ] },
 
-    { t: "Heap", hue: "teal", cat: "heaps-top-k", kids: [
+    { t: "Heap", hue: "teal", learn: "heap", cat: "heaps-top-k", kids: [
       { t: "Top K / Kth Element / K Closest" },
       { t: "Greedy + Heap", kids: [
         { t: "Task scheduler" },
@@ -144,7 +144,7 @@ window.PATTERN_MAP = {
       { t: "K-way Merge" }
     ] },
 
-    { t: "Graphs", hue: "brown", cat: "graphs", kids: [
+    { t: "Graphs", hue: "brown", learn: "graphs", cat: "graphs", kids: [
       { t: "Traversal", kids: [
         { t: "BFS" },
         { t: "DFS" }
@@ -170,7 +170,7 @@ window.PATTERN_MAP = {
       { t: "Bipartite / Multi-source BFS / 0-1 BFS" }
     ] },
 
-    { t: "Trie", hue: "magenta", cat: "tries", kids: [
+    { t: "Trie", hue: "magenta", learn: "trie", cat: "tries", kids: [
       { t: "Prefix Based", kids: [
         { t: "Insert / search" },
         { t: "Prefix match" }
@@ -178,7 +178,7 @@ window.PATTERN_MAP = {
       { t: "Bitwise Trie" }
     ] },
 
-    { t: "Dynamic Programming", hue: "slate", cat: "dynamic-programming", kids: [
+    { t: "Dynamic Programming", hue: "slate", learn: "dynamic-programming", cat: "dynamic-programming", kids: [
       { t: "Core", kids: [
         { t: "1D" },
         { t: "2D" }
@@ -205,7 +205,7 @@ window.PATTERN_MAP = {
       ] }
     ] },
 
-    { t: "Greedy", hue: "purple", cat: "greedy", kids: [
+    { t: "Greedy", hue: "purple", learn: "greedy", cat: "greedy", kids: [
       { t: "Interval Greedy", cat: "intervals", kids: [
         { t: "Activity selection" },
         { t: "Non-overlapping intervals" },
@@ -223,7 +223,7 @@ window.PATTERN_MAP = {
       { t: "Huffman / Merge Cost" }
     ] },
 
-    { t: "Bit Manipulation", hue: "blue", cat: "bit-manipulation", kids: [
+    { t: "Bit Manipulation", hue: "blue", learn: "bit-manipulation", cat: "bit-manipulation", kids: [
       { t: "Core", kids: [
         { t: "XOR pattern" },
         { t: "Bit masking" }
@@ -235,7 +235,7 @@ window.PATTERN_MAP = {
       ] }
     ] },
 
-    { t: "Sorting Algorithms", hue: "graphite", kids: [
+    { t: "Sorting Algorithms", hue: "graphite", learn: "sorting", kids: [
       { t: "Bubble Sort" },
       { t: "Selection Sort" },
       { t: "Insertion Sort" },
@@ -247,7 +247,7 @@ window.PATTERN_MAP = {
       { t: "Bucket Sort" }
     ] },
 
-    { t: "Range Structures", hue: "green", kids: [
+    { t: "Range Structures", hue: "green", learn: "range-structures", kids: [
       { t: "Segment Tree", kids: [
         { t: "Range query" },
         { t: "Lazy propagation" }

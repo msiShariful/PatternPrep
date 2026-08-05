@@ -23,6 +23,16 @@
   var BEHAV = window.BEHAVIORAL || null;
   var ROADMAPS = window.ROADMAPS || null;
 
+  /* Data Structures guides (#/structures) — topics pushed by structures-*.js */
+  var ST = null;
+  if (window.STRUCTURES_META && window.STRUCTURE_TOPICS && window.STRUCTURE_TOPICS.length) {
+    ST = {
+      name: window.STRUCTURES_META.name,
+      intro: window.STRUCTURES_META.intro,
+      topics: window.STRUCTURE_TOPICS.slice().sort(function (a, b) { return a.order - b.order; })
+    };
+  }
+
   var GROUP_HUE = {
     "Arrays & Strings": "blue",
     "Pointers & Search": "green",
@@ -57,6 +67,7 @@
   function SCOPES() {
     return {
       fund: { topics: FUND.topics, base: "#/fundamentals/", section: "DSA Fundamentals" },
+      st: { topics: ST ? ST.topics : [], base: "#/structures/", section: "Data Structures" },
       sd: { topics: BEYOND ? BEYOND.systemDesign.topics : [], base: "#/system-design/topic/", section: "System Design" },
       sdp: { topics: BEYOND ? (BEYOND.systemDesign.designProblems || []) : [], base: "#/system-design/design/", section: "Design Walkthroughs" },
       db: { topics: BEYOND ? BEYOND.database.topics : [], base: "#/database/", section: "Databases & SQL" },
@@ -153,9 +164,279 @@
           "</tr></thead><tbody>" +
           b.rows.map(function (r) { return "<tr>" + r.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>"; }).join("") +
           "</tbody></table>";
+        case "callout": return calloutHTML(b);
+        case "bigO": return bigOHTML(b);
+        case "cells": return dgFigure(b, dgCellsHTML(b));
+        case "tree": return dgFigure(b, dgTreeHTML(b));
+        case "graph": return dgFigure(b, dgGraphHTML(b));
+        case "steps": return stepperHTML(b);
+        case "check": return checkHTML(b);
+        case "ladder": return ladderHTML(b);
         default: return "";
       }
     }).join("") + "</div>";
+  }
+
+  /* ---------- visual learning blocks (Data Structures guides) ----------
+     Diagrams read three state marks: hl:1 = changing now, hl:2 = context,
+     dim = empty/inactive. Hue comes from CSS vars --dg-main/--dg-c/--dg-on
+     set on the page wrapper (falls back to blue elsewhere). */
+  var WIDGETS = { steppers: [], svgSeq: 0 };
+  function widgetsReset() { WIDGETS.steppers = []; }
+
+  function hueVars(hueName) {
+    return "--dg-main:var(--" + hueName + ");--dg-c:var(--" + hueName + "-c);--dg-on:var(--on-" + hueName + "-c)";
+  }
+
+  var CO_META = {
+    analogy: ["Mental model", "co-analogy"],
+    rule: ["Rule of thumb", "co-rule"],
+    pitfall: ["Watch out", "co-pitfall"],
+    pro: ["Pro insight", "co-pro"]
+  };
+  function calloutHTML(b) {
+    var m = CO_META[b.variant] || CO_META.rule;
+    return '<aside class="callout ' + m[1] + '"><p class="co-head"><span class="co-label">' + m[0] + "</span>" +
+      (b.title ? '<span class="co-title">' + b.title + "</span>" : "") + "</p>" +
+      '<p class="co-text">' + b.text + "</p></aside>";
+  }
+
+  function bigOClass(o) {
+    var s = String(o).replace(/\s+/g, "");
+    if (/²|\^2|2ⁿ|n!|·|\*/.test(s)) return "cost-red";
+    if (/^O\(log/i.test(s)) return "cost-teal";
+    if (/log/.test(s)) return "cost-orange";
+    if (/^O\((1|α\(n\))\)/.test(s)) return "cost-green";
+    return "cost-amber";
+  }
+  function bigOHTML(b) {
+    return '<div class="bigo">' + (b.rows || []).map(function (r) {
+      return '<div class="bigo-row"><span class="bo-op">' + esc(r[0]) + "</span>" +
+        '<span class="bo-chip ' + bigOClass(r[1]) + '">' + esc(r[1]) + "</span>" +
+        '<span class="bo-note">' + (r[2] || "") + "</span></div>";
+    }).join("") + "</div>";
+  }
+
+  function dgFigure(spec, inner) {
+    return '<figure class="dg">' +
+      (spec.title ? '<div class="dg-title">' + esc(spec.title) + "</div>" : "") +
+      '<div class="dg-scroll">' + inner + "</div>" +
+      (spec.caption ? '<figcaption class="dg-cap">' + spec.caption + "</figcaption>" : "") +
+      "</figure>";
+  }
+
+  function dgHl(c) {
+    return (c.hl === 1 ? " hl1" : c.hl === 2 ? " hl2" : "") + (c.dim ? " dim" : "");
+  }
+
+  function dgCellsHTML(spec) {
+    var cells = spec.cells || [];
+    var n = cells.length;
+    var i, c, html;
+
+    if (spec.dir === "v") {
+      /* vertical stack — first array item at the bottom */
+      html = '<div class="dgv">';
+      for (i = n - 1; i >= 0; i--) {
+        c = cells[i];
+        var side = (spec.pointers || []).filter(function (p) { return p.i === i; })
+          .map(function (p) { return '<span class="dgv-lab">← ' + esc(p.t) + "</span>"; }).join("");
+        html += '<div class="dgv-row">' +
+          (spec.index ? '<span class="dg-idx">' + i + "</span>" : "") +
+          '<span class="dg-cell' + dgHl(c) + '">' + esc(String(c.v)) + "</span>" + side + "</div>";
+      }
+      return html + "</div>";
+    }
+
+    /* horizontal grid — optional rows: top pointers / cells / indices / bottom pointers */
+    var arrows = !!spec.arrows;
+    var colOf = function (idx) { return arrows ? idx * 2 + 1 : idx + 1; };
+    var cols = [];
+    for (i = 0; i < n; i++) {
+      cols.push("minmax(44px, max-content)");
+      if (arrows && i < n - 1) cols.push("26px");
+    }
+    var topPtrs = (spec.pointers || []).filter(function (p) { return p.pos === "top"; });
+    var botPtrs = (spec.pointers || []).filter(function (p) { return p.pos !== "top"; });
+    var row = 1;
+    html = '<div class="dg-grid" style="grid-template-columns:' + cols.join(" ") + '">';
+    if (topPtrs.length) {
+      topPtrs.forEach(function (p) {
+        html += '<span class="dg-ptr" style="grid-area:' + row + "/" + colOf(p.i) + '">' + esc(p.t) + " ↓</span>";
+      });
+      row++;
+    }
+    for (i = 0; i < n; i++) {
+      html += '<span class="dg-cell' + dgHl(cells[i]) + '" style="grid-area:' + row + "/" + colOf(i) + '">' + esc(String(cells[i].v)) + "</span>";
+      if (arrows && i < n - 1) {
+        html += '<span class="dg-arrow" style="grid-area:' + row + "/" + (colOf(i) + 1) + '">→</span>';
+      }
+    }
+    row++;
+    if (spec.index) {
+      for (i = 0; i < n; i++) {
+        html += '<span class="dg-idx" style="grid-area:' + row + "/" + colOf(i) + '">' + i + "</span>";
+      }
+      row++;
+    }
+    botPtrs.forEach(function (p) {
+      html += '<span class="dg-ptr" style="grid-area:' + row + "/" + colOf(p.i) + '">↑ ' + esc(p.t) + "</span>";
+    });
+    return html + "</div>";
+  }
+
+  function dgTreeHTML(spec) {
+    var UNIT = 56, LVL = 60, R = 15.5;
+    var leafX = 0, maxDepth = 0;
+    var nodes = [], edges = [];
+    function walk(node, depth) {
+      if (!node) return null;
+      var me = { v: node.v, hl: node.hl, depth: depth };
+      if (depth > maxDepth) maxDepth = depth;
+      var kids = (node.kids || []).filter(Boolean);
+      if (!kids.length) {
+        me.x = leafX++;
+      } else {
+        var xs = [];
+        kids.forEach(function (k) {
+          var c = walk(k, depth + 1);
+          if (c) { edges.push([me, c]); xs.push(c.x); }
+        });
+        me.x = xs.length ? (xs[0] + xs[xs.length - 1]) / 2 : leafX++;
+      }
+      nodes.push(me);
+      return me;
+    }
+    walk(spec.root, 0);
+    var W = Math.max(leafX, 1) * UNIT, H = (maxDepth + 1) * LVL;
+    var cx = function (m) { return m.x * UNIT + UNIT / 2; };
+    var cy = function (m) { return m.depth * LVL + LVL / 2; };
+    var svg = '<svg class="dg-tree" viewBox="0 0 ' + W + " " + H + '" style="max-width:' + W + 'px" role="img">';
+    edges.forEach(function (e) {
+      svg += '<line class="dg-tedge" x1="' + cx(e[0]) + '" y1="' + cy(e[0]) + '" x2="' + cx(e[1]) + '" y2="' + cy(e[1]) + '"/>';
+    });
+    nodes.forEach(function (m) {
+      var hlc = m.hl === 1 ? " hl1" : m.hl === 2 ? " hl2" : "";
+      svg += '<circle class="dg-node' + hlc + '" cx="' + cx(m) + '" cy="' + cy(m) + '" r="' + R + '"/>' +
+        '<text class="dg-ntext' + hlc + '" x="' + cx(m) + '" y="' + (cy(m) + 0.5) + '">' + esc(String(m.v)) + "</text>";
+    });
+    return svg + "</svg>";
+  }
+
+  function dgGraphHTML(spec) {
+    var nodes = spec.nodes || [], edges = spec.edges || [];
+    var byId = {};
+    nodes.forEach(function (nd) { byId[nd.id] = nd; });
+    var maxY = 0;
+    nodes.forEach(function (nd) { if (nd.y > maxY) maxY = nd.y; });
+    var R = 7.5;
+    var mid = "dgm" + (++WIDGETS.svgSeq);
+    var svg = '<svg class="dg-graph" viewBox="-10 -10 120 ' + (maxY + 20) + '" style="max-width:460px" role="img">' +
+      '<defs><marker id="' + mid + '" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">' +
+      '<path d="M0 0 L8 4 L0 8 z" class="dg-arrowhead"/></marker></defs>';
+    edges.forEach(function (e) {
+      var a = byId[e.a], b = byId[e.b];
+      if (!a || !b) return;
+      var dx = b.x - a.x, dy = b.y - a.y;
+      var len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var pad = R + 1.5;
+      var x1 = a.x + (dx / len) * pad, y1 = a.y + (dy / len) * pad;
+      var x2 = b.x - (dx / len) * pad, y2 = b.y - (dy / len) * pad;
+      svg += '<line class="dg-gedge' + (e.hl ? " hl" : "") + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"' +
+        (e.dir ? ' marker-end="url(#' + mid + ')"' : "") + "/>";
+      if (e.w != null) {
+        svg += '<text class="dg-wlab" x="' + ((a.x + b.x) / 2) + '" y="' + ((a.y + b.y) / 2 - 1.5) + '">' + esc(String(e.w)) + "</text>";
+      }
+    });
+    nodes.forEach(function (nd) {
+      var hlc = nd.hl === 1 ? " hl1" : nd.hl === 2 ? " hl2" : "";
+      svg += '<circle class="dg-node' + hlc + '" cx="' + nd.x + '" cy="' + nd.y + '" r="' + R + '"/>' +
+        '<text class="dg-gtext' + hlc + '" x="' + nd.x + '" y="' + (nd.y + 0.4) + '">' + esc(String(nd.v != null ? nd.v : nd.id)) + "</text>";
+    });
+    return svg + "</svg>";
+  }
+
+  function dgFrameHTML(frame) {
+    if (frame.cells) return dgCellsHTML(frame.cells);
+    if (frame.tree) return dgTreeHTML(frame.tree);
+    if (frame.graph) return dgGraphHTML(frame.graph);
+    return "";
+  }
+
+  function stepperHTML(b) {
+    var frames = b.frames || [];
+    if (!frames.length) return "";
+    var idx = WIDGETS.steppers.push(frames) - 1;
+    var dots = frames.map(function (f, i) {
+      return '<button class="st-dot' + (i === 0 ? " on" : "") + '" aria-label="Step ' + (i + 1) + '"></button>';
+    }).join("");
+    return '<div class="stepper" data-stepper="' + idx + '">' +
+      '<div class="stepper-head"><span class="st-title">' + esc(b.title || "Step through it") + "</span>" +
+      '<span class="st-count" data-count>1 / ' + frames.length + "</span></div>" +
+      '<div class="stepper-stage" data-stage><div class="dg-scroll">' + dgFrameHTML(frames[0]) + "</div></div>" +
+      '<p class="stepper-cap" data-cap aria-live="polite">' + (frames[0].d || "") + "</p>" +
+      '<div class="stepper-nav"><button class="st-btn" data-prev disabled>← Back</button>' +
+      '<div class="st-dots" data-dots>' + dots + "</div>" +
+      '<button class="st-btn st-primary" data-next>Next →</button></div></div>';
+  }
+
+  function checkHTML(b) {
+    return '<div class="checks">' + (b.items || []).map(function (it) {
+      return '<div class="check-item"><button class="check-q" aria-expanded="false">' +
+        '<span class="cq-t">' + it.q + "</span>" +
+        '<span class="cq-hint">tap to reveal</span></button>' +
+        '<div class="check-a" hidden>' + it.a + "</div></div>";
+    }).join("") + "</div>";
+  }
+
+  function ladderHTML(b) {
+    return '<ol class="ladder">' + (b.steps || []).map(function (s, i) {
+      return '<li class="ladder-step"><span class="ld-n">' + (i + 1) + "</span><div>" +
+        '<span class="ld-t">' + esc(s.t) + "</span>" +
+        '<p class="ld-d">' + s.d + "</p>" +
+        (s.href ? '<a class="ld-link" href="' + s.href + '">' + esc(s.link || "Open") + " →</a>" : "") +
+        "</div></li>";
+    }).join("") + "</ol>";
+  }
+
+  /* wire up interactive blocks after a view render */
+  function bindBlocks(root) {
+    Array.prototype.forEach.call(root.querySelectorAll("[data-stepper]"), function (el) {
+      var frames = WIDGETS.steppers[parseInt(el.getAttribute("data-stepper"), 10)];
+      if (!frames) return;
+      var i = 0;
+      var stage = el.querySelector("[data-stage]");
+      var cap = el.querySelector("[data-cap]");
+      var count = el.querySelector("[data-count]");
+      var prev = el.querySelector("[data-prev]");
+      var next = el.querySelector("[data-next]");
+      var dots = el.querySelector("[data-dots]").children;
+      function show(k) {
+        i = Math.max(0, Math.min(frames.length - 1, k));
+        stage.innerHTML = '<div class="dg-scroll">' + dgFrameHTML(frames[i]) + "</div>";
+        cap.innerHTML = frames[i].d || "";
+        count.textContent = (i + 1) + " / " + frames.length;
+        prev.disabled = i === 0;
+        next.disabled = i === frames.length - 1;
+        Array.prototype.forEach.call(dots, function (d, j) {
+          d.className = "st-dot" + (j === i ? " on" : j < i ? " done" : "");
+        });
+      }
+      prev.addEventListener("click", function () { show(i - 1); });
+      next.addEventListener("click", function () { show(i + 1); });
+      Array.prototype.forEach.call(dots, function (d, j) {
+        d.addEventListener("click", function () { show(j); });
+      });
+    });
+
+    Array.prototype.forEach.call(root.querySelectorAll(".check-q"), function (btn) {
+      btn.addEventListener("click", function () {
+        var body = btn.parentNode.querySelector(".check-a");
+        body.hidden = !body.hidden;
+        btn.setAttribute("aria-expanded", String(!body.hidden));
+        btn.querySelector(".cq-hint").textContent = body.hidden ? "tap to reveal" : "hide";
+      });
+    });
   }
 
   function renderStatement(text) {
@@ -173,6 +454,7 @@
     { href: "#/", label: "Home", match: function (h) { return h === "#/" || h === ""; } },
     { href: "#/roadmap", label: "Roadmap", match: function (h) { return h.indexOf("#/roadmap") === 0; } },
     { href: "#/fundamentals", label: "Fundamentals", match: function (h) { return h.indexOf("#/fundamentals") === 0; } },
+    { href: "#/structures", label: "Structures", match: function (h) { return h.indexOf("#/structures") === 0; } },
     { href: "#/patterns", label: "Problem Bank", match: function (h) { return /^#\/(patterns|pattern\/|problem\/)/.test(h); } },
     { href: "#/system-design", label: "System Design", match: function (h) { return h.indexOf("#/system-design") === 0; } },
     { href: "#/database", label: "Databases", match: function (h) { return h.indexOf("#/database") === 0; } },
@@ -282,6 +564,7 @@
     html += '<div class="section-head"><h2>Beyond the algorithms</h2><span class="sub">the rest of the FAANG loop</span></div>';
     html += '<div class="grid grid-2">' +
       learnCard("#/fundamentals", "blue", "O(n)", "DSA Fundamentals", "Big O, the core data structures, and a 6-step protocol for reading any problem — read this before phase 1.", learnCount("fund", FUND.topics)) +
+      (ST ? learnCard("#/structures", "teal", "[ ]", "Data Structures", "Sixteen structures from zero to master — anatomy diagrams, step-through walkthroughs, honest Big-O tables, and the insights seniors reach for.", learnCount("st", ST.topics)) : "") +
       (BEYOND ? learnCard("#/system-design", "green", "⬡", "System Design", "Scalability, load balancing, caching, queues, CAP — plus guided walkthroughs of the classic design questions.", learnCount("sd", BEYOND.systemDesign.topics) + " · " + BEYOND.systemDesign.designProblems.length + " walkthroughs") : "") +
       (BEYOND ? learnCard("#/database", "amber", "SQL", "Databases & SQL", "Joins, indexing, normalization, transactions — and the query problems interviewers actually ask.", learnCount("db", BEYOND.database.topics)) : "") +
       (BEYOND ? learnCard("#/cs", "purple", "TCP", "CS Fundamentals", "The OSI model, TCP vs UDP, what-happens-when-you-type-a-URL, processes vs threads, deadlocks.", learnCount("cs", BEYOND.csFundamentals.topics)) : "") +
@@ -339,6 +622,7 @@
     function walk(node, id, depth, hueName, parentIdx) {
       var entry = {
         id: id, t: node.t, cat: node.cat || null, depth: depth, hue: hueName,
+        learn: depth === 1 && ST ? node.learn || null : null,
         hasKids: !!(node.kids && node.kids.length),
         collapsed: !!atlasSession.collapsed[id],
         total: atlasCount(node), parent: parentIdx
@@ -365,6 +649,9 @@
     if (n.cat && CAT_BY_ID[n.cat]) {
       var c = CAT_BY_ID[n.cat], s = catStats(c);
       h += '<a class="an-go" href="#/pattern/' + c.id + '" title="Practice ' + esc(c.name) + " — " + s.solved + "/" + s.total + ' solved">' + s.solved + "/" + s.total + "</a>";
+    }
+    if (n.learn) {
+      h += '<a class="an-go an-learn" href="#/structures/' + n.learn + '" title="Open the ' + esc(n.t) + ' guide — zero to master">guide</a>';
     }
     return '<div class="atlas-node ' + cls + '"' + style + ">" + h + "</div>";
   }
@@ -651,6 +938,48 @@
 
   function viewMissing(name) {
     view.innerHTML = '<header><h1>' + esc(name) + '</h1><p class="lede">This section’s data file has not been generated yet. Check that all files in <code>js/data/</code> are present.</p></header>';
+  }
+
+  /* ---------- Data Structures: zero to master ---------- */
+  function viewStructures(id) {
+    if (!ST) return viewMissing("Data Structures");
+    if (id) {
+      var tp = null;
+      for (var i = 0; i < ST.topics.length; i++) if (ST.topics[i].id === id) tp = ST.topics[i];
+      if (!tp) return viewMissing("Guide not found");
+      return viewStructureTopic(tp);
+    }
+    var read = readCount("st", ST.topics.map(function (t) { return t.id; }));
+    var html = '<header style="margin-bottom:26px"><p class="eyebrow">Zero to master · ' + read + "/" + ST.topics.length + " read</p>" +
+      "<h1>" + esc(ST.name) + "</h1>" +
+      '<p class="lede">' + ST.intro + "</p></header>";
+    html += '<div class="grid grid-2">';
+    ST.topics.forEach(function (t, i) {
+      var done = Progress.isTopicRead("st:" + t.id);
+      html += '<a class="st-card" href="#/structures/' + t.id + '" style="' + hueVars(t.hue) + '">' +
+        '<span class="st-num' + (done ? " done" : "") + '">' + (done ? "✓" : String(i + 1).padStart(2, "0")) + "</span>" +
+        '<span class="st-body"><span class="t">' + esc(t.title) + '</span><br><span class="s">' + esc(t.tagline || "") + "</span></span>" +
+        '<span class="st-min">' + t.minutes + " min</span></a>";
+    });
+    html += "</div>";
+    view.innerHTML = html;
+  }
+
+  function viewStructureTopic(tp) {
+    var idx = ST.topics.indexOf(tp);
+    var prev = ST.topics[idx - 1], next = ST.topics[idx + 1];
+    var key = "st:" + tp.id;
+    view.innerHTML = '<div class="article-wide" style="' + hueVars(tp.hue) + '">' +
+      '<header style="margin-bottom:22px"><p class="eyebrow"><a href="#/structures">Data Structures</a> · ' + (idx + 1) + " of " + ST.topics.length + " · ~" + tp.minutes + " min</p>" +
+      '<div class="prob-head"><div><h1>' + esc(tp.title) + "</h1>" +
+      '<p class="lede">' + tp.summary + "</p></div>" +
+      readToggleHTML(key) + "</div></header>" +
+      '<div class="article-body">' + renderBlocks(tp.blocks) + "</div>" +
+      '<div class="prob-pager">' +
+      (prev ? '<a href="#/structures/' + prev.id + '">← ' + esc(prev.title) + "</a>" : "<span></span>") +
+      (next ? '<a href="#/structures/' + next.id + '">' + esc(next.title) + " →</a>" : "<span></span>") +
+      "</div></div>";
+    bindReadToggle();
   }
 
   function viewFundamentals(topicId) {
@@ -1066,12 +1395,14 @@
     var parts = hash.replace(/^#\//, "").split("/").filter(Boolean);
     window.scrollTo(0, 0);
     document.body.classList.remove("atlas-full"); /* map mode re-adds it */
+    widgetsReset();
 
     if (parts.length === 0) viewHome();
     else if (parts[0] === "roadmap") viewRoadmap(parts[1]);
     else if (parts[0] === "behavioral") viewBehavioral(parts[1]);
     else if (parts[0] === "patterns") viewPatterns(parts[1]);
     else if (parts[0] === "fundamentals") viewFundamentals(parts[1]);
+    else if (parts[0] === "structures") viewStructures(parts[1]);
     else if (parts[0] === "pattern") viewCategory(parts[1]);
     else if (parts[0] === "problem") viewProblem(parts[1], parts[2]);
     else if (parts[0] === "system-design") viewSystemDesign(parts[1], parts[2]);
@@ -1079,6 +1410,7 @@
     else if (parts[0] === "cs") viewCS(parts[1]);
     else viewHome();
 
+    bindBlocks(view);
     var h1 = view.querySelector("h1");
     document.title = (h1 ? h1.textContent.replace(/\s+/g, " ").trim() + " — " : "") + "PatternPrep";
     renderChrome();
