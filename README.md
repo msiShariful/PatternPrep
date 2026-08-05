@@ -16,6 +16,8 @@ system design, behavioral prep, and guided roadmaps. No backend, no build step, 
 
 <img src="docs/screenshots/home.png" alt="PatternPrep home — progress ring and pattern path" width="800">
 
+<img src="docs/screenshots/pattern-map.png" alt="Pattern map — the whole DSA pattern taxonomy as an interactive full-screen mind map, with live progress chips linking into practice" width="800">
+
 </div>
 
 ---
