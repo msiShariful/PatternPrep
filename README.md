@@ -4,8 +4,9 @@
 
 **Master 18 patterns, not 2,000 problems.**
 
-A fully static FAANG interview prep platform — pattern-first problem bank, progressive hints,
-system design, behavioral prep, and guided roadmaps. No backend, no build step, no account.
+A fully static FAANG interview prep platform — pattern-first problem bank, an interactive
+pattern mind map, visual data-structure guides, progressive hints, system design, behavioral
+prep, and guided roadmaps. No backend, no build step, no account.
 
 ![Static site](https://img.shields.io/badge/static-no%20backend-1a73e8)
 ![Dependencies](https://img.shields.io/badge/dependencies-zero-1e8e3e)
@@ -56,6 +57,25 @@ Every problem ships with:
   time/space complexity.
 
 <img src="docs/screenshots/problem-hints.png" alt="Problem page with progressive hint stepper" width="800">
+
+The bank also opens as a **full-screen Pattern map** — an interactive mind map of the whole DSA
+landscape (16 structure branches → pattern families → techniques) with live progress chips that
+deep-link into practice.
+
+### 🧠 Data structures, zero to master
+Sixteen visual guides — one per branch of the Pattern map — that teach each structure from first
+principles to senior-level insight, built to be absorbed fast rather than skimmed:
+
+- **anatomy diagrams** — labeled cell/pointer figures, SVG trees and graphs,
+- **interactive walkthroughs** — click through an insert shifting an array, a sift-up bubbling to
+  the root, a BFS wave washing over a graph, a call stack unwinding — one change per frame,
+- **color-coded Big-O strips** with an honest one-line *why* per row,
+- callouts in four voices: *mental model*, *rule of thumb*, *watch out*, and *pro insight*
+  (cache locality, O(n) heapify, TimSort stability, load-factor rehashes),
+- **tap-to-reveal self-checks** for active recall, and a **4-rung mastery ladder** linking each
+  guide into the problem bank.
+
+<img src="docs/screenshots/structures-guide.png" alt="Array guide — Java operations, interactive insert walkthrough, and callouts" width="800">
 
 ### 📚 Beyond the algorithms
 - **DSA Fundamentals** — Big O, core data structures, and a 6-step protocol for reading problems.
