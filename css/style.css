@@ -20,6 +20,14 @@
   --purple: #8430ce; --purple-c: #e9d2fd; --on-purple-c: #4a0d8a; --purple-soft: #f3e8fd;
   --teal: #0097a7;   --teal-c: #c2ecf4;   --on-teal-c: #00505c;   --teal-soft: #e2f6fa;
 
+  /* extended hues — Pattern Atlas branches */
+  --indigo: #4355b9;   --indigo-c: #dde2fb;   --on-indigo-c: #1b2a80;
+  --magenta: #b80672;  --magenta-c: #fdd9ec;  --on-magenta-c: #770b4e;
+  --orange: #e8710a;   --orange-c: #fee2c8;   --on-orange-c: #8a4a00;
+  --brown: #8a6534;    --brown-c: #f0e3cd;    --on-brown-c: #57401d;
+  --slate: #5f6368;    --slate-c: #e4e7ed;    --on-slate-c: #3c4043;
+  --graphite: #3c4043; --graphite-c: #e8eaed; --on-graphite-c: #202124;
+
   --solved: var(--green);
   --attempted: var(--amber);
   --untouched: #dbe1e9;
@@ -59,6 +67,13 @@ html[data-theme="dark"] {
   --red: #f28b82;    --red-c: #5c2b26;    --on-red-c: #ffd8d3;    --red-soft: #301f1d;
   --purple: #d0bcff; --purple-c: #463366; --on-purple-c: #eadcff; --purple-soft: #282133;
   --teal: #80deea;   --teal-c: #0f444e;   --on-teal-c: #b8ecf4;   --teal-soft: #17292e;
+
+  --indigo: #9fa8ff;   --indigo-c: #333a75;   --on-indigo-c: #dfe1ff;
+  --magenta: #ff8bcb;  --magenta-c: #5c1d44;  --on-magenta-c: #ffd7eb;
+  --orange: #fcad70;   --orange-c: #5e3a1b;   --on-orange-c: #ffddbd;
+  --brown: #d3b184;    --brown-c: #4c3a24;    --on-brown-c: #ecd9bd;
+  --slate: #9aa0a6;    --slate-c: #3a3f46;    --on-slate-c: #dde1e6;
+  --graphite: #e8eaed; --graphite-c: #43464c; --on-graphite-c: #f4f5f7;
 
   --untouched: #3a3e46;
   --ring-track: #3a3e46;
@@ -433,6 +448,167 @@ h3 { font-family: var(--display); font-weight: 600; font-size: 18px; margin: 26p
 .strip .sq.solved { background: var(--solved); }
 .strip .sq.attempted { background: var(--attempted); }
 .strip-lg .sq { width: 16px; height: 16px; border-radius: 5.5px; }
+
+/* ============================ pattern atlas (mind map) ============================ */
+.atlas-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 26px 0 14px;
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: 99px;
+  padding: 4px;
+  gap: 2px;
+}
+.seg-opt {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 13.5px;
+  padding: 8px 18px;
+  border-radius: 99px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.seg-opt:hover { background: var(--surface-2); text-decoration: none; }
+.seg-opt.active { background: var(--blue-c); color: var(--on-blue-c); font-weight: 600; }
+
+.atlas-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.atlas-tools .tool {
+  font-family: var(--display);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--outline);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.atlas-tools .tool:hover { background: var(--surface-2); }
+.atlas-zoom {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--outline);
+  background: var(--surface);
+  border-radius: 99px;
+  padding: 2px;
+}
+.atlas-zoom button {
+  width: 30px; height: 30px;
+  border: none;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.atlas-zoom button:hover { background: var(--surface-3); }
+.atlas-zoom .pct {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  min-width: 42px;
+  text-align: center;
+}
+
+.atlas {
+  border: 1px solid var(--outline);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+.atlas-viewport {
+  height: clamp(520px, 72vh, 860px);
+  overflow: auto;
+  cursor: grab;
+  background-image: radial-gradient(color-mix(in srgb, var(--outline) 72%, transparent) 1px, transparent 1.4px);
+  background-size: 24px 24px;
+}
+.atlas-viewport.dragging { cursor: grabbing; }
+.atlas-viewport.dragging * { pointer-events: none; }
+.atlas-sizer { position: relative; margin: 0 auto; }
+.atlas-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.atlas-canvas > svg { position: absolute; left: 0; top: 0; display: block; }
+
+.atlas-node {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.atlas-node .an-t {
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  padding: 2px 7px;
+  margin: 0 -7px 0 0;
+  border-radius: 9px;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.atlas-node button.an-t { cursor: pointer; }
+.atlas-node button.an-t:hover { background: var(--surface-3); }
+
+.an-root .an-t {
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: 18px;
+  padding: 11px 18px;
+  margin: 0;
+  box-shadow: var(--shadow-1);
+  display: block;
+  white-space: nowrap;
+}
+.an-root .rt { font-family: var(--display); font-weight: 700; font-size: 17px; display: block; line-height: 1.25; }
+.an-root .rs { font-family: var(--mono); font-size: 11px; color: var(--ink-3); display: block; margin-top: 3px; }
+
+.an-d1 .an-t { font-family: var(--display); font-weight: 700; font-size: 14.5px; letter-spacing: .01em; }
+.an-d2 .an-t { font-family: var(--body); font-weight: 600; font-size: 13.5px; }
+.an-leaf .an-t { font-family: var(--body); font-weight: 400; font-size: 13.5px; color: var(--ink-2); }
+
+.an-count {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 10.5px;
+  padding: 1.5px 8px;
+  border-radius: 99px;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+}
+.an-go {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 10.5px;
+  padding: 2.5px 9px;
+  border-radius: 99px;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  flex: none;
+}
+.an-go:hover { background: var(--chip-main); color: var(--surface); text-decoration: none; }
+
+.atlas-hint {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 12px 2px 0;
+}
+
+@media (max-width: 760px) {
+  .atlas-viewport { height: 62vh; }
+}
 
 /* ============================ learn cards ============================ */
 .learn-card {

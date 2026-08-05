@@ -32,7 +32,12 @@
     "Recursion & DP": "purple"
   };
   /* Ring/dot colors reference CSS variables so they adapt to light/dark theme. */
-  var HUE_MAIN = { blue: "var(--blue)", green: "var(--green)", amber: "var(--amber)", red: "var(--red)", purple: "var(--purple)", teal: "var(--teal)" };
+  var HUE_MAIN = {
+    blue: "var(--blue)", green: "var(--green)", amber: "var(--amber)", red: "var(--red)", purple: "var(--purple)", teal: "var(--teal)",
+    indigo: "var(--indigo)", magenta: "var(--magenta)", orange: "var(--orange)", brown: "var(--brown)", slate: "var(--slate)", graphite: "var(--graphite)"
+  };
+
+  var PMAP = window.PATTERN_MAP || null;
 
   var DIFF_CLASS = { "Easy": "chip-easy", "Medium": "chip-medium", "Hard": "chip-hard", "Super Hard": "chip-super" };
 
@@ -312,14 +317,261 @@
       '<span class="count">' + count + "</span></a>";
   }
 
-  function viewPatterns() {
+  /* ---------- pattern atlas (mind map on #/patterns) ----------
+     Whimsical-style tidy tree: HTML nodes absolutely positioned over an SVG of
+     curvy hue ribbons. Collapse state and zoom live for the tab session only. */
+  var atlasSession = null;              /* { collapsed: {nodeId:true}, zoom } */
+  var atlasNodes = null;                /* last laid-out node list */
+  var atlasDims = { w: 0, h: 0 };
+
+  function atlasCount(node) {
+    var n = 0;
+    (node.kids || []).forEach(function (k) { n += 1 + atlasCount(k); });
+    return n;
+  }
+
+  function atlasVisibleNodes() {
     var t = totalStats();
-    var html = '<header style="margin-bottom:26px"><p class="eyebrow">Problem bank</p>' +
-      "<h1>The pattern path</h1>" +
-      '<p class="lede">' + t.total + " curated problems in 18 patterns across six phases. Each problem has three progressive hints — pattern, approach, pseudocode — and a Java solution kept firmly behind a click.</p></header>";
-    html += continueCard();
-    html += pathGrid();
+    var nodes = [{
+      id: "root", t: "DSA Patterns", sub: t.total + " problems · " + t.solved + " solved",
+      depth: 0, hue: "blue", hasKids: true, collapsed: false, parent: -1, cat: null, total: 0
+    }];
+    function walk(node, id, depth, hueName, parentIdx) {
+      var entry = {
+        id: id, t: node.t, cat: node.cat || null, depth: depth, hue: hueName,
+        hasKids: !!(node.kids && node.kids.length),
+        collapsed: !!atlasSession.collapsed[id],
+        total: atlasCount(node), parent: parentIdx
+      };
+      var idx = nodes.push(entry) - 1;
+      if (entry.hasKids && !entry.collapsed) {
+        node.kids.forEach(function (k, i) { walk(k, id + "." + i, depth + 1, hueName, idx); });
+      }
+    }
+    PMAP.branches.forEach(function (b, i) { walk(b, "b" + i, 1, b.hue || "blue", 0); });
+    return nodes;
+  }
+
+  function atlasNodeHTML(n, i) {
+    if (n.parent < 0) {
+      return '<div class="atlas-node an-root"><span class="an-t"><span class="rt">' + esc(n.t) + '</span><span class="rs">' + esc(n.sub) + "</span></span></div>";
+    }
+    var cls = n.depth === 1 ? "an-d1" : (n.depth === 2 ? "an-d2" : "an-leaf");
+    var style = ' style="--chip-bg:var(--' + n.hue + '-c);--chip-fg:var(--on-' + n.hue + '-c);--chip-main:var(--' + n.hue + ')"';
+    var label = esc(n.t) + (n.collapsed && n.total ? '<span class="an-count">' + n.total + "</span>" : "");
+    var h = n.hasKids
+      ? '<button class="an-t" data-i="' + i + '" aria-expanded="' + String(!n.collapsed) + '">' + label + "</button>"
+      : '<span class="an-t">' + label + "</span>";
+    if (n.cat && CAT_BY_ID[n.cat]) {
+      var c = CAT_BY_ID[n.cat], s = catStats(c);
+      h += '<a class="an-go" href="#/pattern/' + c.id + '" title="Practice ' + esc(c.name) + " — " + s.solved + "/" + s.total + ' solved">' + s.solved + "/" + s.total + "</a>";
+    }
+    return '<div class="atlas-node ' + cls + '"' + style + ">" + h + "</div>";
+  }
+
+  function atlasLayout(nodes) {
+    var HGAP = 44, LEAF_GAP = 7, PAD = 30;
+    var childrenOf = nodes.map(function () { return []; });
+    nodes.forEach(function (n, i) { if (n.parent >= 0) childrenOf[n.parent].push(i); });
+    var cursorY = PAD, maxRight = 0;
+    function place(i, x) {
+      var n = nodes[i];
+      n.x = x;
+      if (x + n.w > maxRight) maxRight = x + n.w;
+      var kids = childrenOf[i];
+      if (!kids.length) {
+        n.y = cursorY;
+        cursorY += n.h + LEAF_GAP;
+        return;
+      }
+      kids.forEach(function (k, j) {
+        place(k, x + n.w + HGAP);
+        if (j < kids.length - 1) cursorY += (n.depth === 0 ? 16 : n.depth === 1 ? 7 : 2);
+      });
+      var f = nodes[kids[0]], l = nodes[kids[kids.length - 1]];
+      n.y = (f.y + f.h / 2 + l.y + l.h / 2) / 2 - n.h / 2;
+    }
+    place(0, PAD);
+    return { w: maxRight + PAD, h: Math.max(cursorY, nodes[0].y + nodes[0].h) - LEAF_GAP + PAD };
+  }
+
+  function renderAtlas() {
+    var host = document.getElementById("atlasCanvas");
+    if (!host) return;
+    var nodes = atlasVisibleNodes();
+    var html = '<svg id="atlasSvg" aria-hidden="true"></svg>';
+    nodes.forEach(function (n, i) { html += atlasNodeHTML(n, i); });
+    host.innerHTML = html;
+
+    var els = host.querySelectorAll(".atlas-node");
+    nodes.forEach(function (n, i) { n.el = els[i]; n.w = els[i].offsetWidth; n.h = els[i].offsetHeight; });
+    var dims = atlasLayout(nodes);
+    nodes.forEach(function (n) { n.el.style.left = n.x + "px"; n.el.style.top = n.y + "px"; });
+    host.style.width = dims.w + "px";
+    host.style.height = dims.h + "px";
+
+    var svg = document.getElementById("atlasSvg");
+    svg.setAttribute("width", dims.w);
+    svg.setAttribute("height", dims.h);
+    var paths = "";
+    nodes.forEach(function (n) {
+      if (n.parent < 0) return;
+      var p = nodes[n.parent];
+      var x1 = p.x + p.w + 3, y1 = p.y + p.h / 2;
+      var x2 = n.x - 3, y2 = n.y + n.h / 2;
+      var mx = (x2 - x1) / 2;
+      paths += '<path d="M' + x1 + " " + y1 + " C" + (x1 + mx) + " " + y1 + " " + (x2 - mx) + " " + y2 + " " + x2 + " " + y2 +
+        '" style="stroke:' + (HUE_MAIN[n.hue] || HUE_MAIN.blue) + '" stroke-width="' + (n.depth === 1 ? 2.4 : 1.7) + '" stroke-linecap="round" fill="none" opacity=".9"/>';
+    });
+    svg.innerHTML = paths;
+
+    atlasNodes = nodes;
+    atlasDims = dims;
+    atlasApplyZoom();
+  }
+
+  function atlasApplyZoom() {
+    var canvas = document.getElementById("atlasCanvas");
+    var sizer = document.getElementById("atlasSizer");
+    var pct = document.getElementById("atlasZoomPct");
+    if (!canvas || !sizer) return;
+    var z = atlasSession.zoom;
+    canvas.style.transform = "scale(" + z + ")";
+    sizer.style.width = (atlasDims.w * z) + "px";
+    sizer.style.height = (atlasDims.h * z) + "px";
+    if (pct) pct.textContent = Math.round(z * 100) + "%";
+  }
+
+  function atlasSetZoom(z) {
+    atlasSession.zoom = Math.max(0.35, Math.min(1.5, Math.round(z * 100) / 100));
+    atlasApplyZoom();
+  }
+
+  function atlasCollapsedAll() {
+    var c = {};
+    PMAP.branches.forEach(function (b, i) { c["b" + i] = true; });
+    return c;
+  }
+
+  function initAtlas() {
+    if (!atlasSession) atlasSession = { collapsed: atlasCollapsedAll(), zoom: 1 };
+    var viewport = document.getElementById("atlasViewport");
+    var canvas = document.getElementById("atlasCanvas");
+
+    canvas.addEventListener("click", function (e) {
+      var btn = e.target.closest("button.an-t");
+      if (!btn) return;
+      var n = atlasNodes[parseInt(btn.getAttribute("data-i"), 10)];
+      if (!n) return;
+      var oldX = n.x, oldY = n.y;
+      if (atlasSession.collapsed[n.id]) delete atlasSession.collapsed[n.id];
+      else atlasSession.collapsed[n.id] = true;
+      renderAtlas();
+      for (var j = 0; j < atlasNodes.length; j++) {
+        if (atlasNodes[j].id === n.id) {
+          viewport.scrollLeft += (atlasNodes[j].x - oldX) * atlasSession.zoom;
+          viewport.scrollTop += (atlasNodes[j].y - oldY) * atlasSession.zoom;
+          break;
+        }
+      }
+    });
+
+    document.getElementById("atlasExpand").addEventListener("click", function () {
+      atlasSession.collapsed = {};
+      renderAtlas();
+    });
+    document.getElementById("atlasCollapse").addEventListener("click", function () {
+      atlasSession.collapsed = atlasCollapsedAll();
+      renderAtlas();
+      viewport.scrollLeft = 0;
+      viewport.scrollTop = Math.max(0, (atlasDims.h * atlasSession.zoom - viewport.clientHeight) / 2);
+    });
+    document.getElementById("atlasZoomIn").addEventListener("click", function () { atlasSetZoom(atlasSession.zoom + 0.15); });
+    document.getElementById("atlasZoomOut").addEventListener("click", function () { atlasSetZoom(atlasSession.zoom - 0.15); });
+    document.getElementById("atlasFit").addEventListener("click", function () {
+      atlasSetZoom(Math.min(viewport.clientWidth / (atlasDims.w || 1), viewport.clientHeight / (atlasDims.h || 1)));
+      viewport.scrollLeft = 0;
+      viewport.scrollTop = 0;
+    });
+
+    /* drag to pan — mouse only; touch keeps native scrolling */
+    viewport.addEventListener("pointerdown", function (e) {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      if (e.target.closest("button, a")) return;
+      var sx = e.clientX, sy = e.clientY, sl = viewport.scrollLeft, st = viewport.scrollTop;
+      viewport.classList.add("dragging");
+      function move(ev) {
+        viewport.scrollLeft = sl - (ev.clientX - sx);
+        viewport.scrollTop = st - (ev.clientY - sy);
+      }
+      function up() {
+        viewport.classList.remove("dragging");
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    });
+
+    viewport.addEventListener("wheel", function (e) {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      atlasSetZoom(atlasSession.zoom - (e.deltaY > 0 ? 0.1 : -0.1));
+    }, { passive: false });
+
+    renderAtlas();
+    viewport.scrollTop = Math.max(0, (atlasDims.h * atlasSession.zoom - viewport.clientHeight) / 2);
+  }
+
+  function viewPatterns(mode) {
+    if (mode === "map" || mode === "list") {
+      try { localStorage.setItem("patternprep.patternsView", mode); } catch (e) {}
+    } else {
+      var stored = null;
+      try { stored = localStorage.getItem("patternprep.patternsView"); } catch (e) {}
+      mode = stored === "list" ? "list" : "map";
+    }
+    if (!PMAP) mode = "list";
+
+    var t = totalStats();
+    var html = '<header><p class="eyebrow">Problem bank</p>';
+    if (mode === "map") {
+      html += "<h1>Every pattern, one map.</h1>" +
+        '<p class="lede">The whole coding-interview landscape — 16 data structures unfolding into the technique families behind ' + t.total + " curated problems. Open a branch, follow a ribbon, and the tonal chips take you straight to practice.</p>";
+    } else {
+      html += "<h1>The pattern path</h1>" +
+        '<p class="lede">' + t.total + " curated problems in 18 patterns across six phases. Each problem has three progressive hints — pattern, approach, pseudocode — and a Java solution kept firmly behind a click.</p>";
+    }
+    html += "</header>";
+    html += '<div style="margin-top:26px">' + continueCard() + "</div>";
+
+    html += '<div class="atlas-bar">' +
+      '<nav class="seg" aria-label="Problem bank view">' +
+      '<a class="seg-opt' + (mode === "map" ? " active" : "") + '" href="#/patterns/map">Pattern map</a>' +
+      '<a class="seg-opt' + (mode === "list" ? " active" : "") + '" href="#/patterns/list">Phase list</a>' +
+      "</nav>";
+    if (mode === "map") {
+      html += '<div class="atlas-tools">' +
+        '<button class="tool" id="atlasExpand">Expand all</button>' +
+        '<button class="tool" id="atlasCollapse">Collapse all</button>' +
+        '<span class="atlas-zoom">' +
+        '<button id="atlasZoomOut" aria-label="Zoom out">−</button>' +
+        '<span class="pct" id="atlasZoomPct">100%</span>' +
+        '<button id="atlasZoomIn" aria-label="Zoom in">+</button>' +
+        "</span>" +
+        '<button class="tool" id="atlasFit">Fit</button>' +
+        "</div>";
+    }
+    html += "</div>";
+
+    if (mode === "map") {
+      html += '<div class="atlas"><div class="atlas-viewport" id="atlasViewport" tabindex="0" role="region" aria-label="Pattern map — scrollable canvas"><div class="atlas-sizer" id="atlasSizer"><div class="atlas-canvas" id="atlasCanvas"></div></div></div></div>' +
+        '<p class="atlas-hint">drag to pan · click a branch to unfold it · ' + esc(PMAP.credit) + "</p>";
+    } else {
+      html += pathGrid();
+    }
     view.innerHTML = html;
+    if (mode === "map") initAtlas();
   }
 
   function topicListNumbers(hueName) {
@@ -801,7 +1053,7 @@
     if (parts.length === 0) viewHome();
     else if (parts[0] === "roadmap") viewRoadmap(parts[1]);
     else if (parts[0] === "behavioral") viewBehavioral(parts[1]);
-    else if (parts[0] === "patterns") viewPatterns();
+    else if (parts[0] === "patterns") viewPatterns(parts[1]);
     else if (parts[0] === "fundamentals") viewFundamentals(parts[1]);
     else if (parts[0] === "pattern") viewCategory(parts[1]);
     else if (parts[0] === "problem") viewProblem(parts[1], parts[2]);
