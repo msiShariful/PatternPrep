@@ -1518,6 +1518,11 @@ body.nav-open .drawer { transform: none; }
 body.nav-open .scrim { opacity: 1; pointer-events: auto; }
 
 /* ============================ responsive ============================ */
+/* Ten sections: tighten the tab row before handing over to the drawer. */
+@media (max-width: 1440px) and (min-width: 1081px) {
+  .tabs { gap: 2px; }
+  .tab { padding: 8px 8px; font-size: 13px; }
+}
 @media (max-width: 1080px) {
   .tabs { display: none; }
   .hamburger { display: flex; }

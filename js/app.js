@@ -48,6 +48,7 @@
   };
 
   var PMAP = window.PATTERN_MAP || null;
+  var FW = window.FRAMEWORKS && window.FRAMEWORKS.items && window.FRAMEWORKS.items.length ? window.FRAMEWORKS : null;
 
   var DIFF_CLASS = { "Easy": "chip-easy", "Medium": "chip-medium", "Hard": "chip-hard", "Super Hard": "chip-super" };
 
@@ -457,6 +458,7 @@
     { href: "#/structures", label: "Structures", match: function (h) { return h.indexOf("#/structures") === 0; } },
     { href: "#/patterns", label: "Problem Bank", match: function (h) { return /^#\/(patterns|pattern\/|problem\/)/.test(h); } },
     { href: "#/system-design", label: "System Design", match: function (h) { return h.indexOf("#/system-design") === 0; } },
+    { href: "#/frameworks", label: "Frameworks", match: function (h) { return h.indexOf("#/frameworks") === 0; } },
     { href: "#/database", label: "Databases", match: function (h) { return h.indexOf("#/database") === 0; } },
     { href: "#/cs", label: "CS Core", match: function (h) { return h.indexOf("#/cs") === 0 && h.indexOf("#/cs-") !== 0; } },
     { href: "#/behavioral", label: "Behavioral", match: function (h) { return h.indexOf("#/behavioral") === 0; } }
@@ -464,9 +466,18 @@
 
   function renderChrome() {
     var hash = location.hash || "#/";
-    document.getElementById("tabs").innerHTML = TABS.map(function (t) {
+    var tabsEl = document.getElementById("tabs");
+    tabsEl.innerHTML = TABS.map(function (t) {
       return '<a class="tab' + (t.match(hash) ? " active" : "") + '" href="' + t.href + '">' + t.label + "</a>";
     }).join("");
+    /* The row scrolls (scrollbar hidden) on narrow desktops — keep the active tab
+       in view, and again once web fonts land (they widen the row after first paint). */
+    var activeTab = tabsEl.querySelector(".tab.active");
+    if (activeTab && activeTab.scrollIntoView) {
+      var showActive = function () { activeTab.scrollIntoView({ block: "nearest", inline: "nearest" }); };
+      showActive();
+      if (document.fonts && document.fonts.ready && document.fonts.ready.then) document.fonts.ready.then(showActive);
+    }
 
     var s = totalStats();
     var pct = s.total ? Math.round((s.solved / s.total) * 100) : 0;
@@ -566,6 +577,7 @@
       learnCard("#/fundamentals", "blue", "O(n)", "DSA Fundamentals", "Big O, the core data structures, and a 6-step protocol for reading any problem — read this before phase 1.", learnCount("fund", FUND.topics)) +
       (ST ? learnCard("#/structures", "teal", "[ ]", "Data Structures", "Sixteen structures from zero to master — anatomy diagrams, step-through walkthroughs, honest Big-O tables, and the insights seniors reach for.", learnCount("st", ST.topics)) : "") +
       (BEYOND ? learnCard("#/system-design", "green", "⬡", "System Design", "Scalability, load balancing, caching, queues, CAP — plus guided walkthroughs of the classic design questions.", learnCount("sd", BEYOND.systemDesign.topics) + " · " + BEYOND.systemDesign.designProblems.length + " walkthroughs") : "") +
+      (FW ? learnCard("#/frameworks", "green", "🍃", "Frameworks", "Spring Boot from beans to production — the full framework roadmap as an explorable mind map, in the same canvas as the Pattern map.", FW.items.length + (FW.items.length === 1 ? " roadmap" : " roadmaps")) : "") +
       (BEYOND ? learnCard("#/database", "amber", "SQL", "Databases & SQL", "Joins, indexing, normalization, transactions — and the query problems interviewers actually ask.", learnCount("db", BEYOND.database.topics)) : "") +
       (BEYOND ? learnCard("#/cs", "purple", "TCP", "CS Fundamentals", "The OSI model, TCP vs UDP, what-happens-when-you-type-a-URL, processes vs threads, deadlocks.", learnCount("cs", BEYOND.csFundamentals.topics)) : "") +
       (BEHAV ? learnCard("#/behavioral", "red", "STAR", "Behavioral", "STAR stories, all 16 Amazon Leadership Principles, Google & Meta signals, and senior-scope narratives — half the loop lives here.", learnCount("bh", BEHAV.topics)) : "") +
@@ -600,10 +612,13 @@
       '<span class="count">' + count + "</span></a>";
   }
 
-  /* ---------- pattern atlas (mind map on #/patterns) ----------
+  /* ---------- atlas (mind maps: #/patterns map + #/frameworks/:id) ----------
      Whimsical-style tidy tree: HTML nodes absolutely positioned over an SVG of
-     curvy hue ribbons. Collapse state and zoom live for the tab session only. */
-  var atlasSession = null;              /* { collapsed: {nodeId:true}, zoom } */
+     curvy hue ribbons. The engine renders whatever atlasSrc describes; collapse
+     state and zoom live for the tab session only, kept per map. */
+  var atlasSrc = null;                  /* { key, rootT, rootSub(), branches, credit } */
+  var atlasSessions = {};               /* key → { collapsed: {nodeId:true}, zoom } */
+  var atlasSession = null;              /* atlasSessions[atlasSrc.key] */
   var atlasNodes = null;                /* last laid-out node list */
   var atlasDims = { w: 0, h: 0 };
 
@@ -614,9 +629,8 @@
   }
 
   function atlasVisibleNodes() {
-    var t = totalStats();
     var nodes = [{
-      id: "root", t: "DSA Patterns", sub: t.total + " problems · " + t.solved + " solved",
+      id: "root", t: atlasSrc.rootT, sub: atlasSrc.rootSub(),
       depth: 0, hue: "blue", hasKids: true, collapsed: false, parent: -1, cat: null, total: 0
     }];
     function walk(node, id, depth, hueName, parentIdx) {
@@ -632,7 +646,7 @@
         node.kids.forEach(function (k, i) { walk(k, id + "." + i, depth + 1, hueName, idx); });
       }
     }
-    PMAP.branches.forEach(function (b, i) { walk(b, "b" + i, 1, b.hue || "blue", 0); });
+    atlasSrc.branches.forEach(function (b, i) { walk(b, "b" + i, 1, b.hue || "blue", 0); });
     return nodes;
   }
 
@@ -755,12 +769,13 @@
 
   function atlasCollapsedAll() {
     var c = {};
-    PMAP.branches.forEach(function (b, i) { c["b" + i] = true; });
+    atlasSrc.branches.forEach(function (b, i) { c["b" + i] = true; });
     return c;
   }
 
   function initAtlas() {
-    if (!atlasSession) atlasSession = { collapsed: atlasCollapsedAll(), zoom: 1 };
+    if (!atlasSessions[atlasSrc.key]) atlasSessions[atlasSrc.key] = { collapsed: atlasCollapsedAll(), zoom: 1 };
+    atlasSession = atlasSessions[atlasSrc.key];
     var viewport = document.getElementById("atlasViewport");
     var canvas = document.getElementById("atlasCanvas");
 
@@ -829,6 +844,28 @@
     viewport.scrollTop = Math.max(0, (atlasDims.h * atlasSession.zoom - viewport.clientHeight) / 2);
   }
 
+  /* Immersive workspace: canvas fills the viewport below the top bar,
+     controls float over it, the page itself does not scroll. */
+  function atlasStage(h1Text, topLeftHTML) {
+    document.body.classList.add("atlas-full");
+    view.innerHTML = '<div class="atlas-stage"><h1 class="sr-only">' + esc(h1Text) + "</h1>" +
+      '<div class="atlas-viewport" id="atlasViewport" tabindex="0" role="region" aria-label="' + esc(h1Text) + ' — scrollable canvas"><div class="atlas-sizer" id="atlasSizer"><div class="atlas-canvas" id="atlasCanvas"></div></div></div>' +
+      '<div class="atlas-float atlas-float-tl">' + topLeftHTML + "</div>" +
+      '<div class="atlas-float atlas-float-tr">' +
+      '<button class="tool" id="atlasExpand">Expand all</button>' +
+      '<button class="tool" id="atlasCollapse">Collapse all</button>' +
+      '<span class="atlas-zoom">' +
+      '<button id="atlasZoomOut" aria-label="Zoom out">−</button>' +
+      '<span class="pct" id="atlasZoomPct">100%</span>' +
+      '<button id="atlasZoomIn" aria-label="Zoom in">+</button>' +
+      "</span>" +
+      '<button class="tool" id="atlasFit">Fit</button>' +
+      "</div>" +
+      '<div class="atlas-float atlas-float-bl"><p class="atlas-hint">drag to pan · click a branch to unfold · ' + esc(atlasSrc.credit) + "</p></div>" +
+      "</div>";
+    initAtlas();
+  }
+
   function viewPatterns(mode) {
     if (mode === "map" || mode === "list") {
       try { localStorage.setItem("patternprep.patternsView", mode); } catch (e) {}
@@ -845,25 +882,11 @@
       "</nav>";
 
     if (mode === "map") {
-      /* Immersive workspace: canvas fills the viewport below the top bar,
-         controls float over it, the page itself does not scroll. */
-      document.body.classList.add("atlas-full");
-      view.innerHTML = '<div class="atlas-stage"><h1 class="sr-only">Pattern map</h1>' +
-        '<div class="atlas-viewport" id="atlasViewport" tabindex="0" role="region" aria-label="Pattern map — scrollable canvas"><div class="atlas-sizer" id="atlasSizer"><div class="atlas-canvas" id="atlasCanvas"></div></div></div>' +
-        '<div class="atlas-float atlas-float-tl">' + seg + "</div>" +
-        '<div class="atlas-float atlas-float-tr">' +
-        '<button class="tool" id="atlasExpand">Expand all</button>' +
-        '<button class="tool" id="atlasCollapse">Collapse all</button>' +
-        '<span class="atlas-zoom">' +
-        '<button id="atlasZoomOut" aria-label="Zoom out">−</button>' +
-        '<span class="pct" id="atlasZoomPct">100%</span>' +
-        '<button id="atlasZoomIn" aria-label="Zoom in">+</button>' +
-        "</span>" +
-        '<button class="tool" id="atlasFit">Fit</button>' +
-        "</div>" +
-        '<div class="atlas-float atlas-float-bl"><p class="atlas-hint">drag to pan · click a branch to unfold · ' + esc(PMAP.credit) + "</p></div>" +
-        "</div>";
-      initAtlas();
+      atlasSrc = {
+        key: "patterns", rootT: "DSA Patterns", branches: PMAP.branches, credit: PMAP.credit,
+        rootSub: function () { var t = totalStats(); return t.total + " problems · " + t.solved + " solved"; }
+      };
+      atlasStage("Pattern map", seg);
       return;
     }
 
@@ -980,6 +1003,44 @@
       (next ? '<a href="#/structures/' + next.id + '">' + esc(next.title) + " →</a>" : "<span></span>") +
       "</div></div>";
     bindReadToggle();
+  }
+
+  /* ---------- Frameworks: roadmap mind maps ---------- */
+  function fwCount(fw) {
+    var n = 0;
+    fw.branches.forEach(function (b) { n += 1 + atlasCount(b); });
+    return n;
+  }
+
+  function viewFrameworks(id) {
+    if (!FW) return viewMissing("Frameworks");
+    if (id) {
+      var it = null;
+      for (var i = 0; i < FW.items.length; i++) if (FW.items[i].id === id) it = FW.items[i];
+      if (!it) return viewMissing("Framework not found");
+      return viewFrameworkMap(it);
+    }
+    var html = '<header style="margin-bottom:26px"><p class="eyebrow">Roadmap mind maps</p>' +
+      "<h1>Frameworks</h1>" +
+      '<p class="lede">Framework knowledge, mapped. Each roadmap is an explorable mind map — the same canvas as the Pattern map — laying out what to learn and in what order, branch by branch.</p></header>';
+    html += '<div class="grid grid-2">';
+    FW.items.forEach(function (f) {
+      html += learnCard("#/frameworks/" + f.id, "green", "🍃", esc(f.name), esc(f.blurb),
+        f.branches.length + " branches · " + fwCount(f) + " topics");
+    });
+    html += "</div>";
+    view.innerHTML = html;
+  }
+
+  function viewFrameworkMap(fw) {
+    atlasSrc = {
+      key: "fw-" + fw.id, rootT: fw.root || fw.name, branches: fw.branches, credit: fw.credit,
+      rootSub: function () { return fw.branches.length + " branches · " + fwCount(fw) + " topics"; }
+    };
+    var tl = '<nav class="seg" aria-label="Frameworks">' +
+      '<a class="seg-opt" href="#/frameworks">← Frameworks</a>' +
+      '<span class="seg-opt active">' + esc(fw.name) + "</span></nav>";
+    atlasStage(fw.name + " roadmap", tl);
   }
 
   function viewFundamentals(topicId) {
@@ -1403,6 +1464,7 @@
     else if (parts[0] === "patterns") viewPatterns(parts[1]);
     else if (parts[0] === "fundamentals") viewFundamentals(parts[1]);
     else if (parts[0] === "structures") viewStructures(parts[1]);
+    else if (parts[0] === "frameworks") viewFrameworks(parts[1]);
     else if (parts[0] === "pattern") viewCategory(parts[1]);
     else if (parts[0] === "problem") viewProblem(parts[1], parts[2]);
     else if (parts[0] === "system-design") viewSystemDesign(parts[1], parts[2]);
