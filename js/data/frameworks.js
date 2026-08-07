@@ -1,6 +1,8 @@
 /* Frameworks — roadmap mind maps (#/frameworks).
    Node shape matches PATTERN_MAP: { t, kids? }; top-level branches also carry
    a hue. Rendered by the same atlas engine as the Pattern map. */
+window.FRAMEWORK_TOPICS = window.FRAMEWORK_TOPICS || [];
+
 window.FRAMEWORKS = {
   items: [
     {
@@ -12,13 +14,13 @@ window.FRAMEWORKS = {
       credit: "Adapted from CodeWithNishchal's Spring Boot roadmap",
       branches: [
         {
-          t: "Spring ❌ — skip it", hue: "graphite", kids: [
+          t: "Spring ❌ — skip it", hue: "graphite", learn: "spring-vs-boot", kids: [
             { t: "Jump straight to Spring Boot — without learning Spring first" }
           ]
         },
-        { t: "Difference between Spring & Spring Boot", hue: "slate" },
+        { t: "Difference between Spring & Spring Boot", hue: "slate", learn: "spring-vs-boot" },
         {
-          t: "Spring Boot Core", hue: "indigo", kids: [
+          t: "Spring Boot Core", hue: "indigo", learn: "core", kids: [
             {
               t: "Dependency Injection", kids: [
                 { t: "Constructor Injection" },
@@ -41,7 +43,7 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Spring Boot Web (MVC & REST)", hue: "blue", kids: [
+          t: "Spring Boot Web (MVC & REST)", hue: "blue", learn: "web-mvc", kids: [
             { t: "Spring MVC in Boot" },
             { t: "Controller Layer" },
             { t: "Service Layer" },
@@ -58,7 +60,7 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Spring Boot Data Access", hue: "green", kids: [
+          t: "Spring Boot Data Access", hue: "green", learn: "data-jpa", kids: [
             {
               t: "Spring Data JPA", kids: [
                 { t: "JpaRepository" },
@@ -98,7 +100,7 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Spring Boot Annotations", hue: "magenta", kids: [
+          t: "Spring Boot Annotations", hue: "magenta", learn: "annotations", kids: [
             {
               t: "Core / Stereotype", kids: [
                 { t: "@SpringBootApplication" },
@@ -206,7 +208,7 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Hibernate (ORM)", hue: "amber", kids: [
+          t: "Hibernate (ORM)", hue: "amber", learn: "hibernate", kids: [
             { t: "ORM Fundamentals" },
             { t: "SessionFactory lifecycle" },
             { t: "Hibernate caching (L1, L2)" },
@@ -218,13 +220,13 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Embedded Servers", hue: "brown", kids: [
+          t: "Embedded Servers", hue: "brown", learn: "build-run-deploy", kids: [
             { t: "Tomcat" },
             { t: "Jetty" }
           ]
         },
         {
-          t: "Spring Boot Security", hue: "red", kids: [
+          t: "Spring Boot Security", hue: "red", learn: "security", kids: [
             { t: "Basics of Spring Security" },
             { t: "Authentication" },
             { t: "Authorization" },
@@ -248,7 +250,7 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Build Tools", hue: "orange", kids: [
+          t: "Build Tools", hue: "orange", learn: "build-run-deploy", kids: [
             { t: "Maven" },
             { t: "Gradle" },
             { t: "Spring Boot plugin" },
@@ -257,7 +259,7 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "RESTful Web Services", hue: "teal", kids: [
+          t: "RESTful Web Services", hue: "teal", learn: "rest-apis", kids: [
             {
               t: "HTTP Methods", kids: [
                 { t: "GET" },
@@ -273,7 +275,7 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Spring Boot Testing", hue: "purple", kids: [
+          t: "Spring Boot Testing", hue: "purple", learn: "testing", kids: [
             { t: "Unit Testing (JUnit + Mockito)" },
             { t: "@SpringBootTest" },
             { t: "Web layer testing" },
@@ -282,14 +284,14 @@ window.FRAMEWORKS = {
           ]
         },
         {
-          t: "Deployment Basics", hue: "graphite", kids: [
+          t: "Deployment Basics", hue: "graphite", learn: "build-run-deploy", kids: [
             { t: "Fat JAR" },
             { t: "Environment variables" },
             { t: "External config folders" }
           ]
         },
         {
-          t: "Spring Boot Advanced Features", hue: "indigo", kids: [
+          t: "Spring Boot Advanced Features", hue: "indigo", learn: "advanced", kids: [
             {
               t: "Actuator", kids: [
                 { t: "Health" },

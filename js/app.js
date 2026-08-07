@@ -33,6 +33,12 @@
     };
   }
 
+  /* Framework guides (#/frameworks/:fwId/:topicId) — pushed by frameworks-guides-*.js */
+  var FWG = null;
+  if (window.FRAMEWORK_TOPICS && window.FRAMEWORK_TOPICS.length) {
+    FWG = window.FRAMEWORK_TOPICS.slice().sort(function (a, b) { return a.order - b.order; });
+  }
+
   var GROUP_HUE = {
     "Arrays & Strings": "blue",
     "Pointers & Search": "green",
@@ -69,6 +75,7 @@
     return {
       fund: { topics: FUND.topics, base: "#/fundamentals/", section: "DSA Fundamentals" },
       st: { topics: ST ? ST.topics : [], base: "#/structures/", section: "Data Structures" },
+      fw: { topics: FWG || [], base: "#/frameworks/spring-boot/", section: "Spring Boot" },
       sd: { topics: BEYOND ? BEYOND.systemDesign.topics : [], base: "#/system-design/topic/", section: "System Design" },
       sdp: { topics: BEYOND ? (BEYOND.systemDesign.designProblems || []) : [], base: "#/system-design/design/", section: "Design Walkthroughs" },
       db: { topics: BEYOND ? BEYOND.database.topics : [], base: "#/database/", section: "Databases & SQL" },
@@ -577,7 +584,7 @@
       learnCard("#/fundamentals", "blue", "O(n)", "DSA Fundamentals", "Big O, the core data structures, and a 6-step protocol for reading any problem — read this before phase 1.", learnCount("fund", FUND.topics)) +
       (ST ? learnCard("#/structures", "teal", "[ ]", "Data Structures", "Sixteen structures from zero to master — anatomy diagrams, step-through walkthroughs, honest Big-O tables, and the insights seniors reach for.", learnCount("st", ST.topics)) : "") +
       (BEYOND ? learnCard("#/system-design", "green", "⬡", "System Design", "Scalability, load balancing, caching, queues, CAP — plus guided walkthroughs of the classic design questions.", learnCount("sd", BEYOND.systemDesign.topics) + " · " + BEYOND.systemDesign.designProblems.length + " walkthroughs") : "") +
-      (FW ? learnCard("#/frameworks", "green", "🍃", "Frameworks", "Spring Boot from beans to production — the full framework roadmap as an explorable mind map, in the same canvas as the Pattern map.", FW.items.length + (FW.items.length === 1 ? " roadmap" : " roadmaps")) : "") +
+      (FW ? learnCard("#/frameworks", "green", "🍃", "Frameworks", "Spring Boot from beans to production — the full framework roadmap as an explorable mind map, plus plain-English guides for every branch.", (FWG ? learnCount("fw", FWG) : FW.items.length + " roadmap")) : "") +
       (BEYOND ? learnCard("#/database", "amber", "SQL", "Databases & SQL", "Joins, indexing, normalization, transactions — and the query problems interviewers actually ask.", learnCount("db", BEYOND.database.topics)) : "") +
       (BEYOND ? learnCard("#/cs", "purple", "TCP", "CS Fundamentals", "The OSI model, TCP vs UDP, what-happens-when-you-type-a-URL, processes vs threads, deadlocks.", learnCount("cs", BEYOND.csFundamentals.topics)) : "") +
       (BEHAV ? learnCard("#/behavioral", "red", "STAR", "Behavioral", "STAR stories, all 16 Amazon Leadership Principles, Google & Meta signals, and senior-scope narratives — half the loop lives here.", learnCount("bh", BEHAV.topics)) : "") +
@@ -636,7 +643,7 @@
     function walk(node, id, depth, hueName, parentIdx) {
       var entry = {
         id: id, t: node.t, cat: node.cat || null, depth: depth, hue: hueName,
-        learn: depth === 1 && ST ? node.learn || null : null,
+        learn: depth === 1 && atlasSrc.learnBase ? node.learn || null : null,
         hasKids: !!(node.kids && node.kids.length),
         collapsed: !!atlasSession.collapsed[id],
         total: atlasCount(node), parent: parentIdx
@@ -665,7 +672,7 @@
       h += '<a class="an-go" href="#/pattern/' + c.id + '" title="Practice ' + esc(c.name) + " — " + s.solved + "/" + s.total + ' solved">' + s.solved + "/" + s.total + "</a>";
     }
     if (n.learn) {
-      h += '<a class="an-go an-learn" href="#/structures/' + n.learn + '" title="Open the ' + esc(n.t) + ' guide — zero to master">guide</a>';
+      h += '<a class="an-go an-learn" href="' + atlasSrc.learnBase + n.learn + '" title="Open the ' + esc(n.t) + ' guide — zero to master">guide</a>';
     }
     return '<div class="atlas-node ' + cls + '"' + style + ">" + h + "</div>";
   }
@@ -884,6 +891,7 @@
     if (mode === "map") {
       atlasSrc = {
         key: "patterns", rootT: "DSA Patterns", branches: PMAP.branches, credit: PMAP.credit,
+        learnBase: ST ? "#/structures/" : null,
         rootSub: function () { var t = totalStats(); return t.total + " problems · " + t.solved + " solved"; }
       };
       atlasStage("Pattern map", seg);
@@ -1005,42 +1013,85 @@
     bindReadToggle();
   }
 
-  /* ---------- Frameworks: roadmap mind maps ---------- */
+  /* ---------- Frameworks: roadmap mind maps + guides ---------- */
   function fwCount(fw) {
     var n = 0;
     fw.branches.forEach(function (b) { n += 1 + atlasCount(b); });
     return n;
   }
 
-  function viewFrameworks(id) {
+  function fwGuides(fwId) {
+    return FWG ? FWG.filter(function (t) { return t.fw === fwId; }) : [];
+  }
+
+  function viewFrameworks(id, topicId) {
     if (!FW) return viewMissing("Frameworks");
     if (id) {
       var it = null;
       for (var i = 0; i < FW.items.length; i++) if (FW.items[i].id === id) it = FW.items[i];
       if (!it) return viewMissing("Framework not found");
+      if (topicId) {
+        var gs = fwGuides(it.id), tp = null;
+        for (var j = 0; j < gs.length; j++) if (gs[j].id === topicId) tp = gs[j];
+        if (!tp) return viewMissing("Guide not found");
+        return viewFrameworkTopic(it, gs, tp);
+      }
       return viewFrameworkMap(it);
     }
     var html = '<header style="margin-bottom:26px"><p class="eyebrow">Roadmap mind maps</p>' +
       "<h1>Frameworks</h1>" +
-      '<p class="lede">Framework knowledge, mapped. Each roadmap is an explorable mind map — the same canvas as the Pattern map — laying out what to learn and in what order, branch by branch.</p></header>';
-    html += '<div class="grid grid-2">';
+      '<p class="lede">Framework knowledge, mapped. Each roadmap is an explorable mind map — the same canvas as the Pattern map — with plain-English guides that teach every branch from zero.</p></header>';
     FW.items.forEach(function (f) {
-      html += learnCard("#/frameworks/" + f.id, "green", "🍃", esc(f.name), esc(f.blurb),
-        f.branches.length + " branches · " + fwCount(f) + " topics");
+      html += '<div class="grid grid-2">' +
+        learnCard("#/frameworks/" + f.id, "green", "🍃", esc(f.name), esc(f.blurb),
+          f.branches.length + " branches · " + fwCount(f) + " topics") +
+        "</div>";
+      var guides = fwGuides(f.id);
+      if (guides.length) {
+        var read = readCount("fw", guides.map(function (t) { return t.id; }));
+        html += '<div class="section-head"><h2>Learn ' + esc(f.name) + ", branch by branch</h2>" +
+          '<span class="sub">' + read + "/" + guides.length + " read — every map branch, explained from zero</span></div>";
+        html += '<div class="grid grid-2">';
+        guides.forEach(function (t, gi) {
+          var done = Progress.isTopicRead("fw:" + t.id);
+          html += '<a class="st-card" href="#/frameworks/' + f.id + "/" + t.id + '" style="' + hueVars(t.hue) + '">' +
+            '<span class="st-num' + (done ? " done" : "") + '">' + (done ? "✓" : String(gi + 1).padStart(2, "0")) + "</span>" +
+            '<span class="st-body"><span class="t">' + esc(t.title) + '</span><br><span class="s">' + esc(t.tagline || "") + "</span></span>" +
+            '<span class="st-min">' + t.minutes + " min</span></a>";
+        });
+        html += "</div>";
+      }
     });
-    html += "</div>";
     view.innerHTML = html;
   }
 
   function viewFrameworkMap(fw) {
     atlasSrc = {
       key: "fw-" + fw.id, rootT: fw.root || fw.name, branches: fw.branches, credit: fw.credit,
+      learnBase: fwGuides(fw.id).length ? "#/frameworks/" + fw.id + "/" : null,
       rootSub: function () { return fw.branches.length + " branches · " + fwCount(fw) + " topics"; }
     };
     var tl = '<nav class="seg" aria-label="Frameworks">' +
       '<a class="seg-opt" href="#/frameworks">← Frameworks</a>' +
       '<span class="seg-opt active">' + esc(fw.name) + "</span></nav>";
     atlasStage(fw.name + " roadmap", tl);
+  }
+
+  function viewFrameworkTopic(fw, gs, tp) {
+    var idx = gs.indexOf(tp);
+    var prev = gs[idx - 1], next = gs[idx + 1];
+    var key = "fw:" + tp.id;
+    view.innerHTML = '<div class="article-wide" style="' + hueVars(tp.hue) + '">' +
+      '<header style="margin-bottom:22px"><p class="eyebrow"><a href="#/frameworks">' + esc(fw.name) + '</a> · <a href="#/frameworks/' + fw.id + '">roadmap map</a> · ' + (idx + 1) + " of " + gs.length + " · ~" + tp.minutes + " min</p>" +
+      '<div class="prob-head"><div><h1>' + esc(tp.title) + "</h1>" +
+      '<p class="lede">' + tp.summary + "</p></div>" +
+      readToggleHTML(key) + "</div></header>" +
+      '<div class="article-body">' + renderBlocks(tp.blocks) + "</div>" +
+      '<div class="prob-pager">' +
+      (prev ? '<a href="#/frameworks/' + fw.id + "/" + prev.id + '">← ' + esc(prev.title) + "</a>" : "<span></span>") +
+      (next ? '<a href="#/frameworks/' + fw.id + "/" + next.id + '">' + esc(next.title) + " →</a>" : "<span></span>") +
+      "</div></div>";
+    bindReadToggle();
   }
 
   function viewFundamentals(topicId) {
@@ -1464,7 +1515,7 @@
     else if (parts[0] === "patterns") viewPatterns(parts[1]);
     else if (parts[0] === "fundamentals") viewFundamentals(parts[1]);
     else if (parts[0] === "structures") viewStructures(parts[1]);
-    else if (parts[0] === "frameworks") viewFrameworks(parts[1]);
+    else if (parts[0] === "frameworks") viewFrameworks(parts[1], parts[2]);
     else if (parts[0] === "pattern") viewCategory(parts[1]);
     else if (parts[0] === "problem") viewProblem(parts[1], parts[2]);
     else if (parts[0] === "system-design") viewSystemDesign(parts[1], parts[2]);
